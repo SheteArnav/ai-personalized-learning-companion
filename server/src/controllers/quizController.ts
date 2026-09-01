@@ -3,13 +3,13 @@ import { db } from '../db/database.js';
 import { QuizService } from '../services/quizService.js';
 import { QuizQuestion } from '../types/index.js';
 
-export const generateQuiz = (req: Request, res: Response) => {
+export const generateQuiz = async (req: Request, res: Response) => {
   try {
     const { topic, difficulty } = req.body;
     const resolvedTopic = topic || 'Binary Trees & Traversals';
     const resolvedDifficulty = difficulty || 'Intermediate';
 
-    const questions: QuizQuestion[] = QuizService.getQuizForTopic(resolvedTopic, resolvedDifficulty);
+    const questions: QuizQuestion[] = await QuizService.getQuizForTopic(resolvedTopic, resolvedDifficulty);
     db.saveQuizQuestions(resolvedTopic, questions);
 
     res.json({
@@ -23,6 +23,8 @@ export const generateQuiz = (req: Request, res: Response) => {
         difficulty: q.difficulty,
         question: q.question,
         options: q.options,
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation,
       })),
     });
   } catch (error: any) {
@@ -30,7 +32,7 @@ export const generateQuiz = (req: Request, res: Response) => {
   }
 };
 
-export const submitQuiz = (req: Request, res: Response) => {
+export const submitQuiz = async (req: Request, res: Response) => {
   try {
     const { quizId, topic, answers } = req.body;
 
@@ -38,7 +40,7 @@ export const submitQuiz = (req: Request, res: Response) => {
     let storedQuestions = db.getQuizQuestions(resolvedTopic);
 
     if (!storedQuestions) {
-      storedQuestions = QuizService.getQuizForTopic(resolvedTopic);
+      storedQuestions = await QuizService.getQuizForTopic(resolvedTopic);
     }
 
     const result = QuizService.evaluateQuiz({ quizId, topic: resolvedTopic, answers }, storedQuestions);

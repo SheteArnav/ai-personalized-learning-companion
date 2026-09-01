@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLearning } from '../../context/LearningContext.js';
 import { api } from '../../api/client.js';
 import { QuizQuestion, QuizResult } from '../../types/index.js';
+import { isAnswerCorrect } from '../../utils/quizEvaluator.js';
 import { 
   CheckSquare, 
   HelpCircle, 
@@ -95,7 +96,8 @@ export const QuizArena: React.FC = () => {
         selectedAnswer: selectedAnswers[q.id] || '',
       }));
 
-      const res = await api.submitQuiz(quizId, topic, answerPayload);
+      const activeTopic = questions[0]?.topic || topic;
+      const res = await api.submitQuiz(quizId, activeTopic, answerPayload);
       setQuizResult(res.result);
       await refreshData();
 
@@ -156,11 +158,13 @@ export const QuizArena: React.FC = () => {
                 onChange={(e) => setTopic(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl bg-surface-200 border border-white/10 text-white text-xs focus:outline-none focus:border-brand-500"
               >
+                <option value="Python Programming">Python Programming</option>
+                <option value="Data Structures">Data Structures</option>
+                <option value="Algorithms & Graph Theory">Algorithms & Graph Theory</option>
+                <option value="SQL & Database Design">SQL & Database Design</option>
+                <option value="Machine Learning & AI">Machine Learning & AI</option>
+                <option value="System Design & Scalability">System Design & Scalability</option>
                 <option value="Binary Trees & Recursion">Binary Trees & Recursion</option>
-                <option value="SQL Indexing & Optimization">SQL Indexing & Optimization</option>
-                <option value="Python Memory & Concurrency">Python Memory & Concurrency</option>
-                <option value="Linear Data Structures">Linear Data Structures</option>
-                <option value="Graph Theory & Shortest Path">Graph Theory & Shortest Path</option>
               </select>
             </div>
 
@@ -226,18 +230,20 @@ export const QuizArena: React.FC = () => {
           {/* Options (Multiple Choice or True/False) */}
           <div className="space-y-3">
             {currentQuestion.options?.map((option, idx) => {
-              const isSelected = selectedAnswers[currentQuestion.id] === option;
-              const hasAnswered = selectedAnswers[currentQuestion.id] !== undefined;
-              const isCorrect = option === currentQuestion.correctAnswer;
+              const selectedAnswer = selectedAnswers[currentQuestion.id];
+              const isSelected = selectedAnswer === option;
+              const hasAnswered = selectedAnswer !== undefined;
+              const isThisOptionCorrect = isAnswerCorrect(option, currentQuestion.correctAnswer);
+              const isUserSelectedCorrect = isAnswerCorrect(selectedAnswer, currentQuestion.correctAnswer);
 
               let optionStyle = 'bg-surface-200/70 border-white/10 hover:border-brand-500/40 text-slate-200';
               if (hasAnswered) {
-                if (isCorrect) {
-                  optionStyle = 'bg-emerald-500/15 border-emerald-500/50 text-emerald-200';
-                } else if (isSelected) {
-                  optionStyle = 'bg-rose-500/15 border-rose-500/50 text-rose-200';
+                if (isThisOptionCorrect) {
+                  optionStyle = 'bg-emerald-500/15 border-emerald-500/50 text-emerald-200 shadow-sm';
+                } else if (isSelected && !isUserSelectedCorrect) {
+                  optionStyle = 'bg-rose-500/15 border-rose-500/50 text-rose-200 shadow-sm';
                 } else {
-                  optionStyle = 'bg-surface-300/50 border-white/5 text-slate-500';
+                  optionStyle = 'bg-surface-300/50 border-white/5 text-slate-500 opacity-60';
                 }
               }
 
@@ -255,10 +261,10 @@ export const QuizArena: React.FC = () => {
                     <span>{option}</span>
                   </div>
 
-                  {hasAnswered && isCorrect && (
+                  {hasAnswered && isThisOptionCorrect && (
                     <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                   )}
-                  {hasAnswered && isSelected && !isCorrect && (
+                  {hasAnswered && isSelected && !isUserSelectedCorrect && (
                     <XCircle className="w-5 h-5 text-rose-400 flex-shrink-0" />
                   )}
                 </button>
@@ -270,7 +276,7 @@ export const QuizArena: React.FC = () => {
               <div className="space-y-3">
                 <input
                   type="text"
-                  placeholder="Type your concise answer..."
+                  placeholder="Type your concise answer and press Enter..."
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       handleSelectOption(currentQuestion.id, (e.target as HTMLInputElement).value);
@@ -279,6 +285,31 @@ export const QuizArena: React.FC = () => {
                   disabled={isAnswered}
                   className="w-full p-4 rounded-xl bg-surface-200 border border-white/10 text-white text-sm focus:outline-none focus:border-brand-500"
                 />
+                {isAnswered && (
+                  <div
+                    className={`p-3.5 rounded-xl border text-xs flex items-center justify-between gap-2 ${
+                      isAnswerCorrect(selectedAnswers[currentQuestion.id], currentQuestion.correctAnswer)
+                        ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200'
+                        : 'bg-rose-500/15 border-rose-500/40 text-rose-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {isAnswerCorrect(selectedAnswers[currentQuestion.id], currentQuestion.correctAnswer) ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      ) : (
+                        <XCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                      )}
+                      <span>
+                        Your Answer: <strong>{selectedAnswers[currentQuestion.id]}</strong>
+                        {!isAnswerCorrect(selectedAnswers[currentQuestion.id], currentQuestion.correctAnswer) && (
+                          <span className="ml-2 text-slate-300">
+                            (Correct Answer: <strong className="text-emerald-300">{currentQuestion.correctAnswer}</strong>)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
